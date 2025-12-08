@@ -1,0 +1,114 @@
+name: CI/CD Order Service
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      # SÓ roda se mexer na pasta do pedido ou nos k8s do pedido
+      - 'order-service/**'
+      - 'k8s/order/**'
+      - '.github/workflows/ci-order.yml'
+
+jobs:
+  # ====================================================
+  # JOB 1: QUALIDADE (Testes e Lint)
+  # ====================================================
+  quality:
+    name: Test & Lint Order
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        working-directory: ./order-service
+        run: |
+          pip install -r requirements.txt
+          # Assegura que pytest e ruff estão instalados (caso não estejam no requirements)
+          pip install pytest ruff httpx
+
+      - name: Rodar Lint (Ruff)
+        # Aponta para o pyproject.toml na raiz se necessário, ou assume default
+        run: ruff check ./order-service
+
+      - name: Rodar Testes (Pytest)
+        working-directory: ./order-service
+        run: python -m pytest
+
+  # ====================================================
+  # JOB 2: SEGURANÇA (Trivy Scan)
+  # ====================================================
+  security-scan:
+    name: Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Build da imagem (para scan)
+        run: docker build -t test-image ./order-service
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'test-image'
+          format: 'table'
+          # Falha o pipeline se encontrar vulnerabilidades críticas
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # --- JOB 3: DOCKER HUB (Build & Push) ---
+  build-push:
+    name: Build & Push Order
+    needs: [quality, security-scan]  # Só roda se passar nos testes E na segurança
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          
+      - uses: docker/setup-buildx-action@v3
+      
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./order-service
+          file: ./order-service/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/order-service:latest
+
+  # --- JOB 3: DEPLOY (ANY CLOUD) ---
+  deploy:
+    name: Deploy Order to Cloud
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          # O script começa AQUI. Tudo abaixo são comandos LINUX.
+          script: |
+            # 1. Atualiza o código na VM
+            cd TRABALHO_DEVOPS
+            git pull origin main
+
+            # 2. Aplica a pasta do Order
+            kubectl apply -f k8s/order/
+
+            # 3. Força a atualização dos pods
+            kubectl rollout restart deployment/order-api
+            kubectl rollout restart deployment/order-worker

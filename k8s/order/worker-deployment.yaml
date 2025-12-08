@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-worker
+  template:
+    metadata:
+      labels:
+        app: order-worker
+    spec:
+      containers:
+        - name: order-worker
+          image: arruda94/order-service:latest 
+          imagePullPolicy: Always
+          env:
+            - name: REDIS_HOST
+              value: "redis"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          # -----------------------------------------
+          command: ["python", "-m", "app.worker"]
