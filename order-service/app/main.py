@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from app.schema import Order
 from app.order_queue import publish_order, get_queue_items
 
 app = FastAPI()
+
+# Instrumentação Prometheus
+Instrumentator().instrument(app).expose(app)
 
 # Configuração CORS
 app.add_middleware(

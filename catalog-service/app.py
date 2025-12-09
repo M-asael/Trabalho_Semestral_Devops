@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -25,6 +26,9 @@ class ProductResponse(ProductCreate):
 
 # ROTAS DA API
 app = FastAPI(title="Catalog Service")
+
+# Instrumentação Prometheus
+Instrumentator().instrument(app).expose(app)
 
 # Configuração CORS
 app.add_middleware(
