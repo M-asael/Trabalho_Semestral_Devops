@@ -5,8 +5,11 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 # Buscando da pasta database
-from database.connection import get_db
+from database.connection import get_db, engine, Base
 from database.models import ProductModel
+
+# Cria as tabelas se não existirem (Para simplificar o deploy)
+Base.metadata.create_all(bind=engine)
 
 # CONTRATO DA API (Schemas - Pydantic)
 class ProductCreate(BaseModel):
