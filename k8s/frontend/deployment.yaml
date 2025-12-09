@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: SEU_USUARIO/devops-frontend:latest
+          image: arruda94/devops-frontend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80 # O Nginx expõe a porta 80
