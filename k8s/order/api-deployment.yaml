@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: order-api
-          image: arruda94/order-service:latest
+          image: matheusti074/order-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8002 

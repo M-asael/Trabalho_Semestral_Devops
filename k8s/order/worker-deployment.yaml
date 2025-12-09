@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: order-worker
-          image: arruda94/order-service:latest 
+          image: matheusti074/order-service:latest
           imagePullPolicy: Always
           env:
             - name: REDIS_HOST
